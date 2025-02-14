@@ -5,6 +5,11 @@ from flask import Flask, request, jsonify
 from googleapiclient.discovery import build
 from textblob import TextBlob
 from collections import Counter
+import nltk
+from nltk.tokenize import sent_tokenize
+from heapq import nlargest
+
+nltk.download('punkt')
 
 app = Flask(__name__)
 
@@ -48,6 +53,21 @@ def analyze_sentiment(comments):
     sentiment_summary = Counter(sentiments)
     return sentiment_summary
 
+def summarize_comments(comments, num_sentences=3):
+    text = " ".join(comments)
+    sentences = sent_tokenize(text)
+    
+    word_freq = Counter(text.lower().split())
+    max_freq = max(word_freq.values(), default=1)
+    
+    word_freq = {word: freq / max_freq for word, freq in word_freq.items()}
+    
+    sentence_scores = {sentence: sum(word_freq.get(word.lower(), 0) for word in sentence.split()) for sentence in sentences}
+    
+    summary_sentences = nlargest(num_sentences, sentence_scores, key=sentence_scores.get)
+    
+    return " ".join(summary_sentences)
+
 @app.route('/analyze', methods=['POST'])
 def analyze():
     data = request.json
@@ -64,9 +84,12 @@ def analyze():
         return jsonify({"message": "No comments found"}), 200
 
     sentiment_summary = analyze_sentiment(comments)
+    comment_summary = summarize_comments(comments)
+
     return jsonify({
         "Total Comments": len(comments),
-        "Sentiment Summary": sentiment_summary
+        "Sentiment Summary": sentiment_summary,
+        "Comment Summary": comment_summary
     })
 
 @app.route('/')
