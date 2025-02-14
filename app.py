@@ -1,12 +1,12 @@
 import re
 import requests
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from googleapiclient.discovery import build
 from textblob import TextBlob
 from collections import Counter
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates")
 
 # Load YouTube API key from environment variable
 API_KEY = os.getenv("YOUTUBE_API_KEY")
@@ -51,6 +51,10 @@ def analyze_sentiment(comments):
     sentiment_summary = Counter(sentiments)
     return sentiment_summary
 
+@app.route('/')
+def home():
+    return render_template("index.html")  # Serve the web page
+
 @app.route('/analyze', methods=['POST'])
 def analyze():
     data = request.json
@@ -72,10 +76,6 @@ def analyze():
         "Total Comments": len(comments),
         "Sentiment Summary": sentiment_summary
     })
-
-@app.route('/')
-def home():
-    return "Flask YouTube Sentiment Analyzer is Running!"
 
 if __name__ == '__main__':
     app.run(debug=True)
