@@ -5,11 +5,6 @@ from flask import Flask, request, jsonify
 from googleapiclient.discovery import build
 from textblob import TextBlob
 from collections import Counter
-import nltk
-from nltk.tokenize import sent_tokenize
-from heapq import nlargest
-
-nltk.download('punkt')
 
 app = Flask(__name__)
 
@@ -24,18 +19,21 @@ def extract_video_id(youtube_url):
 
 def get_video_comments(video_id, max_results=100):
     comments = []
-    request = youtube.commentThreads().list(
-        part="snippet",
-        videoId=video_id,
-        textFormat="plainText",
-        maxResults=max_results
-    )
-    response = request.execute()
+    try:
+        request = youtube.commentThreads().list(
+            part="snippet",
+            videoId=video_id,
+            textFormat="plainText",
+            maxResults=max_results
+        )
+        response = request.execute()
 
-    for item in response.get("items", []):
-        comment = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
-        comments.append(comment)
-
+        for item in response.get("items", []):
+            comment = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
+            comments.append(comment)
+    except Exception as e:
+        print(f"Error fetching comments: {e}")  # Logs the issue
+        return []
     return comments
 
 def analyze_sentiment(comments):
@@ -53,51 +51,6 @@ def analyze_sentiment(comments):
     sentiment_summary = Counter(sentiments)
     return sentiment_summary
 
-def summarize_comments(comments, num_sentences=3):
-    """
-    Generates a summary of the most relevant comments by filtering out spam,
-    repetitive phrases, and selecting the most meaningful insights.
-    """
-    # Combine all comments into one text
-    text = " ".join(comments)
-
-    # Tokenize into sentences
-    sentences = sent_tokenize(text)
-
-    # Filter out very long or irrelevant sentences (e.g., song lyrics, spam)
-    filtered_sentences = [s for s in sentences if 10 < len(s) < 200]
-
-    # Count word frequencies
-    word_freq = Counter(text.lower().split())
-    max_freq = max(word_freq.values(), default=1)
-
-    # Normalize word frequencies
-    word_freq = {word: freq / max_freq for word, freq in word_freq.items()}
-
-    # Score sentences based on word frequency importance
-    sentence_scores = {
-        sentence: sum(word_freq.get(word.lower(), 0) for word in sentence.split()) 
-        for sentence in filtered_sentences
-    }
-
-    # Select the most meaningful sentences for summary
-    summary_sentences = nlargest(num_sentences, sentence_scores, key=sentence_scores.get)
-
-    # Return cleaned summary
-    return " ".join(summary_sentences) if summary_sentences else "No clear summary available."" ".join(comments)
-    sentences = sent_tokenize(text)
-    
-    word_freq = Counter(text.lower().split())
-    max_freq = max(word_freq.values(), default=1)
-    
-    word_freq = {word: freq / max_freq for word, freq in word_freq.items()}
-    
-    sentence_scores = {sentence: sum(word_freq.get(word.lower(), 0) for word in sentence.split()) for sentence in sentences}
-    
-    summary_sentences = nlargest(num_sentences, sentence_scores, key=sentence_scores.get)
-    
-    return " ".join(summary_sentences)
-
 @app.route('/analyze', methods=['POST'])
 def analyze():
     data = request.json
@@ -114,17 +67,15 @@ def analyze():
         return jsonify({"message": "No comments found"}), 200
 
     sentiment_summary = analyze_sentiment(comments)
-    comment_summary = summarize_comments(comments)
 
     return jsonify({
         "Total Comments": len(comments),
-        "Sentiment Summary": sentiment_summary,
-        "Comment Summary": comment_summary
+        "Sentiment Summary": sentiment_summary
     })
 
 @app.route('/')
 def home():
-    return "Flask YouTube Comment Analyzer is Running!"
+    return "Flask YouTube Sentiment Analyzer is Running!"
 
 if __name__ == '__main__':
     app.run(debug=True)
