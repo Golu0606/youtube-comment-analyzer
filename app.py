@@ -9,7 +9,9 @@ import nltk
 from nltk.tokenize import sent_tokenize
 from heapq import nlargest
 
+# Ensure all required NLTK resources are downloaded
 nltk.download('punkt')
+nltk.download('punkt_tab')
 
 app = Flask(__name__)
 
