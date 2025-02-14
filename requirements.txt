@@ -3,3 +3,4 @@ gunicorn
 requests
 google-api-python-client
 textblob
+nltk
