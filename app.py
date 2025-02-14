@@ -9,9 +9,7 @@ import nltk
 from nltk.tokenize import sent_tokenize
 from heapq import nlargest
 
-# Ensure all required NLTK resources are downloaded
 nltk.download('punkt')
-nltk.download('punkt_tab')
 
 app = Flask(__name__)
 
@@ -56,7 +54,37 @@ def analyze_sentiment(comments):
     return sentiment_summary
 
 def summarize_comments(comments, num_sentences=3):
+    """
+    Generates a summary of the most relevant comments by filtering out spam,
+    repetitive phrases, and selecting the most meaningful insights.
+    """
+    # Combine all comments into one text
     text = " ".join(comments)
+
+    # Tokenize into sentences
+    sentences = sent_tokenize(text)
+
+    # Filter out very long or irrelevant sentences (e.g., song lyrics, spam)
+    filtered_sentences = [s for s in sentences if 10 < len(s) < 200]
+
+    # Count word frequencies
+    word_freq = Counter(text.lower().split())
+    max_freq = max(word_freq.values(), default=1)
+
+    # Normalize word frequencies
+    word_freq = {word: freq / max_freq for word, freq in word_freq.items()}
+
+    # Score sentences based on word frequency importance
+    sentence_scores = {
+        sentence: sum(word_freq.get(word.lower(), 0) for word in sentence.split()) 
+        for sentence in filtered_sentences
+    }
+
+    # Select the most meaningful sentences for summary
+    summary_sentences = nlargest(num_sentences, sentence_scores, key=sentence_scores.get)
+
+    # Return cleaned summary
+    return " ".join(summary_sentences) if summary_sentences else "No clear summary available."" ".join(comments)
     sentences = sent_tokenize(text)
     
     word_freq = Counter(text.lower().split())
